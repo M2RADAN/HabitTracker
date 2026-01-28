@@ -55,6 +55,7 @@ const CreateHabitScreen = () => {
       progress: {},
       streak: 0,
       color: actionType === "do" ? "#4CAF50" : "#F44336", // Зеленый для 'do', красный для 'dont_do'
+      lastCompletedDate: null,
     };
 
     try {

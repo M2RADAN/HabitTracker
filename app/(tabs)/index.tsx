@@ -5,12 +5,10 @@ import {
   View,
   FlatList,
   ActivityIndicator,
-  Pressable,
 } from "react-native";
-import { useFocusEffect, Link } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 import HabitItem from "../../components/HabitItem";
 import { Habit } from "../../types";
@@ -21,7 +19,6 @@ dayjs.locale("ru");
 export default function DashboardScreen() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const today = dayjs().format("YYYY-MM-DD");
 
   useFocusEffect(
     React.useCallback(() => {
@@ -33,16 +30,21 @@ export default function DashboardScreen() {
       };
       loadData();
       return () => {};
-    }, [])
+    }, []),
   );
 
   const handleUpdateHabit = async (habitId: string) => {
+    const today = dayjs().format("YYYY-MM-DD");
+    const yesterday = dayjs().subtract(1, "day").format("YYYY-MM-DD");
     let updatedHabits: Habit[] = [];
+
     setHabits((prevHabits) => {
       updatedHabits = prevHabits.map((habit) => {
         if (habit.id === habitId) {
           const currentProgress = habit.progress[today] || 0;
           let newProgress = currentProgress;
+
+          // Стандартная логика обновления прогресса
           if (habit.measurement.type === "checkbox") {
             newProgress = currentProgress >= 1 ? 0 : 1;
           } else {
@@ -50,15 +52,41 @@ export default function DashboardScreen() {
               newProgress = currentProgress + 1;
             }
           }
+
+          const wasCompleted = currentProgress >= habit.measurement.target;
+          const isNowCompleted = newProgress >= habit.measurement.target;
+
+          let newStreak = habit.streak;
+          let newLastCompletedDate = habit.lastCompletedDate;
+
+          // 🔥 НАША НОВАЯ ЛОГИКА СТРИКОВ 🔥
+          // Сработает только в тот момент, когда привычка становится ВЫПОЛНЕННОЙ
+          if (!wasCompleted && isNowCompleted) {
+            if (habit.lastCompletedDate === yesterday) {
+              // Если последний раз выполняли вчера - стрик растёт!
+              newStreak += 1;
+            } else if (habit.lastCompletedDate !== today) {
+              // Если был пропуск (или это первый раз) - начинаем стрик заново.
+              newStreak = 1;
+            }
+            newLastCompletedDate = today;
+          }
+          // Если пользователь "отменяет" выполнение, стрик пока не трогаем.
+          // Это упрощает логику и предотвращает случайный сброс.
+          // При повторном выполнении в тот же день логика выше вернет все как было.
+
           return {
             ...habit,
             progress: { ...habit.progress, [today]: newProgress },
+            streak: newStreak, // Обновляем стрик
+            lastCompletedDate: newLastCompletedDate, // и дату последнего выполнения
           };
         }
         return habit;
       });
       return updatedHabits;
     });
+
     await saveHabits(updatedHabits);
   };
 
