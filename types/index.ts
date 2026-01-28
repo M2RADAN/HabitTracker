@@ -15,5 +15,5 @@ export type Habit = {
   };
   streak: number; // Текущий стрик
   color: string; // Цвет для отображения в UI
-  lastCompletedDate: string | null; //
+  lastCompletedDate?: string | null; // необязательное поле
 };
