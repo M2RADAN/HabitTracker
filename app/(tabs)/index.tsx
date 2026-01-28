@@ -5,6 +5,9 @@ import {
   View,
   FlatList,
   ActivityIndicator,
+  TouchableOpacity,
+  Alert,
+  Animated,
 } from "react-native";
 import { useFocusEffect } from "expo-router";
 import dayjs from "dayjs";
@@ -13,12 +16,25 @@ import "dayjs/locale/ru";
 import HabitItem from "../../components/HabitItem";
 import { Habit } from "../../types";
 import { getHabits, saveHabits } from "../../utils/storage";
+import { requestAndShowTestNotification } from "../utils/notifications";
+import { useAchievements } from "../utils/AchievementsContext";
 
 dayjs.locale("ru");
 
 export default function DashboardScreen() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [toasts, setToasts] = useState<Array<{ id: string; text: string }>>([]);
+  const { evaluateAndUpdate } = useAchievements();
+
+  const showToast = (text: string) => {
+    const id = Date.now().toString() + Math.random().toString(36).slice(2, 7);
+    setToasts((t) => [...t, { id, text }]);
+    // auto-remove after 3.5s
+    setTimeout(() => {
+      setToasts((t) => t.filter((x) => x.id !== id));
+    }, 3500);
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -88,6 +104,19 @@ export default function DashboardScreen() {
     });
 
     await saveHabits(updatedHabits);
+
+    // Evaluate achievements asynchronously (don't block UI flow)
+    (async () => {
+      try {
+        const res = await evaluateAndUpdate(updatedHabits);
+        const newlyUnlocked = res?.newlyUnlocked ?? [];
+        if (newlyUnlocked && newlyUnlocked.length > 0) {
+          newlyUnlocked.forEach((a) => showToast(`Ачивка: ${a.title}`));
+        }
+      } catch (e) {
+        console.log("evaluateAndNotify failed:", e);
+      }
+    })();
   };
 
   if (isLoading) {
@@ -101,8 +130,32 @@ export default function DashboardScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Мои привычки</Text>
-        <Text style={styles.subtitle}>Сегодня, {dayjs().format("D MMMM")}</Text>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <View>
+            <Text style={styles.title}>Мои привычки</Text>
+            <Text style={styles.subtitle}>
+              Сегодня, {dayjs().format("D MMMM")}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={async () => {
+              try {
+                await requestAndShowTestNotification();
+              } catch (e) {
+                Alert.alert("Ошибка", "Не удалось показать уведомление");
+              }
+            }}
+            style={{ padding: 8 }}
+          >
+            <Text style={{ color: "#A0A0A0" }}>Тест уведомления</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       {habits.length === 0 ? (
         <View style={styles.center}>
@@ -123,6 +176,22 @@ export default function DashboardScreen() {
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
         />
       )}
+
+      {/* Toasters for newly unlocked achievements */}
+      <View
+        pointerEvents="box-none"
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: 40,
+          alignItems: "center",
+        }}
+      >
+        {toasts.map((t, i) => (
+          <Toast key={t.id} text={t.text} index={i} />
+        ))}
+      </View>
     </View>
   );
 }
@@ -160,3 +229,47 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
+// Simple animated toast component
+function Toast({ text, index }: { text: string; index: number }) {
+  const translateY = React.useRef(new Animated.Value(-20 - index * 60)).current;
+  const opacity = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 350,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 350,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={{
+        transform: [{ translateY }],
+        opacity,
+        marginBottom: 8,
+        width: "90%",
+      }}
+    >
+      <View
+        style={{
+          backgroundColor: "#222",
+          padding: 12,
+          borderRadius: 10,
+          borderWidth: 1,
+          borderColor: "#333",
+        }}
+      >
+        <Text style={{ color: "#FFF", fontWeight: "700" }}>{text}</Text>
+      </View>
+    </Animated.View>
+  );
+}

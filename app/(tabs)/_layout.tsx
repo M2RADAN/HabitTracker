@@ -50,6 +50,13 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="achievements"
+        options={{
+          title: "Ачивки",
+          tabBarIcon: ({ color }) => <TabBarIcon name="trophy" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
