@@ -8,21 +8,39 @@
     "scheme": "myapp",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./assets/images/adaptive-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": ["**/*"],
-    "ios": { "supportsTablet": true },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
+      },
+      "package": "com.anonymous.HabitTrackerV2"
+    },
+    "web": {
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "main": "expo-router/entry",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "970c440b-983d-4a36-84b5-9bd88273e3ed"
       }
     },
-    "web": { "favicon": "./assets/images/favicon.png" },
-    "plugins": ["expo-router"],
-    "experiments": { "typedRoutes": true },
-    "main": "expo-router/entry"
+    "owner": "zndl"
   }
 }

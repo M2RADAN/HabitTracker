@@ -1,7 +1,9 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { useRouter } from "expo-router";
 import dayjs from "dayjs";
 import { Habit } from "../types";
+import { useEditMode } from "../app/utils/EditModeContext";
 
 type HabitItemProps = {
   habit: Habit;
@@ -9,6 +11,8 @@ type HabitItemProps = {
 };
 
 const HabitItem = ({ habit, onUpdate }: HabitItemProps) => {
+  const router = useRouter();
+  const { editMode } = useEditMode();
   const isCounter = habit.measurement.type === "counter";
   const today = dayjs().format("YYYY-MM-DD");
 
@@ -36,12 +40,23 @@ const HabitItem = ({ habit, onUpdate }: HabitItemProps) => {
         </Text>
       )}
 
-      <TouchableOpacity
-        onPress={onUpdate}
-        style={[styles.checkButton, isCompleted && styles.completedButton]}
-      >
-        <Text style={styles.checkText}>{isCompleted ? "✅" : "💪"}</Text>
-      </TouchableOpacity>
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        {editMode && (
+          <TouchableOpacity
+            onPress={() => router.push(`/edit?id=${habit.id}`)}
+            style={styles.editButton}
+          >
+            <Text style={styles.editText}>✏️</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          onPress={onUpdate}
+          style={[styles.checkButton, isCompleted && styles.completedButton]}
+        >
+          <Text style={styles.checkText}>{isCompleted ? "✅" : "💪"}</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -85,6 +100,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     marginHorizontal: 16,
+  },
+  editButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: "#2E2E2E",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 8,
+  },
+  editText: {
+    fontSize: 18,
   },
   checkButton: {
     width: 50,

@@ -16,4 +16,12 @@ export type Habit = {
   streak: number; // Текущий стрик
   color: string; // Цвет для отображения в UI
   lastCompletedDate?: string | null; // необязательное поле
+  // Опциональные настройки напоминаний (Этап 3.1)
+  reminder?: {
+    enabled: boolean; // Включено ли напоминание
+    time?: string; // Время в формате 'HH:mm' (локальное)
+    repeats?: "daily" | "weekdays" | "custom"; // Тип повтора
+    // В будущем можно добавить поле с идентификатором запланированного уведомления
+    notificationId?: string | null;
+  };
 };

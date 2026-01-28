@@ -13,7 +13,6 @@ import { useFocusEffect } from "expo-router";
 import { Habit } from "../../types";
 import { getHabits } from "../../utils/storage";
 import { transformProgressToContributions } from "../utils/dataTransformers";
-
 // Простая встроенная реализация heatmap — без внешних зависимостей
 const SimpleHeatmap = ({
   values,
@@ -128,9 +127,23 @@ function computeStats(contributions: Contribution[]) {
   };
 }
 
+// Новая утилита: агрегация вкладов (contributions) по всем привычкам
+function aggregateContributions(habits: Habit[]): Contribution[] {
+  const map: Record<string, number> = {};
+  for (const h of habits) {
+    const contribs = transformProgressToContributions(h);
+    for (const c of contribs) {
+      map[c.date] = (map[c.date] || 0) + (c.count || 0);
+    }
+  }
+  const keys = Object.keys(map).sort();
+  return keys.map((k) => ({ date: k, count: map[k] }));
+}
+
 export default function ProgressScreen() {
   const [habits, setHabits] = useState<Habit[]>([]);
-  const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
+  // selectedId: 'all' means aggregated view
+  const [selectedId, setSelectedId] = useState<string | "all">("all");
   const [isLoading, setIsLoading] = useState(true);
 
   // Загружаем все привычки при каждом входе на экран
@@ -140,44 +153,37 @@ export default function ProgressScreen() {
         setIsLoading(true);
         const storedHabits = await getHabits();
         setHabits(storedHabits);
-        // Автоматически выбираем первую привычку в списке, если она есть
-        if (storedHabits.length > 0) {
-          setSelectedHabit(storedHabits[0]);
+        // Если нет привычек, selectedId stays 'all'
+        if (storedHabits.length > 0 && selectedId === "all") {
+          // оставляем aggregated by default
         }
         setIsLoading(false);
       };
       loadData();
-    }, []),
+    }, [selectedId]),
   );
 
-  const contributionData: Contribution[] = selectedHabit
-    ? transformProgressToContributions(selectedHabit)
-    : [];
+  // Вычисляем данные для выбранного режима: все привычки или конкретная
+  const contributionData: Contribution[] = useMemo(() => {
+    if (selectedId === "all") {
+      return aggregateContributions(habits);
+    }
+    const h = habits.find((x) => x.id === selectedId) || null;
+    return h ? transformProgressToContributions(h) : [];
+  }, [habits, selectedId]);
 
   const stats = useMemo(
     () => computeStats(contributionData),
     [contributionData],
   );
 
-  // Настройки внешнего вида (оставляем для возможной миграции)
-  const chartConfig = {
-    backgroundGradientFrom: "#1E1E1E",
-    backgroundGradientFromOpacity: 0,
-    backgroundGradientTo: "#1E1E1E",
-    backgroundGradientToOpacity: 0,
-    color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`, // Зеленый цвет
-    strokeWidth: 2,
-    barPercentage: 0.5,
-    useShadowColorFromDataset: false,
-  };
-
   const renderHabitSelector = ({ item }: { item: Habit }) => (
     <TouchableOpacity
       style={[
         styles.habitButton,
-        selectedHabit?.id === item.id && styles.selectedHabitButton,
+        selectedId === item.id && styles.selectedHabitButton,
       ]}
-      onPress={() => setSelectedHabit(item)}
+      onPress={() => setSelectedId(item.id)}
     >
       <Text style={styles.habitButtonText}>{item.title}</Text>
     </TouchableOpacity>
@@ -189,12 +195,27 @@ export default function ProgressScreen() {
         <Text style={styles.title}>Прогресс</Text>
       </View>
 
-      {/* Список привычек для выбора */}
+      {/* Селектор: All + отдельные привычки */}
       <View>
         <Text style={styles.subtitle}>Выберите привычку для просмотра:</Text>
         <FlatList
-          data={habits}
-          renderItem={renderHabitSelector}
+          data={[
+            { id: "all", title: "Все" } as any,
+            ...habits.map((h) => ({ id: h.id, title: h.title })),
+          ]}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[
+                styles.habitButton,
+                (selectedId === item.id ||
+                  (selectedId === "all" && item.id === "all")) &&
+                  styles.selectedHabitButton,
+              ]}
+              onPress={() => setSelectedId(item.id)}
+            >
+              <Text style={styles.habitButtonText}>{item.title}</Text>
+            </TouchableOpacity>
+          )}
           keyExtractor={(item) => item.id}
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -202,10 +223,14 @@ export default function ProgressScreen() {
         />
       </View>
 
-      {/* Отображение графика для выбранной привычки */}
-      {selectedHabit ? (
+      {/* Отображение графика */}
+      {contributionData.length > 0 ? (
         <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>{selectedHabit.title}</Text>
+          <Text style={styles.chartTitle}>
+            {selectedId === "all"
+              ? "Все привычки"
+              : habits.find((h) => h.id === selectedId)?.title || "Привычка"}
+          </Text>
 
           <SimpleHeatmap
             values={contributionData}
@@ -213,7 +238,7 @@ export default function ProgressScreen() {
             numDays={105}
           />
 
-          {/* Статистика по выбранной привычке */}
+          {/* Статистика */}
           <View style={styles.statsContainer}>
             <View style={styles.statCard}>
               <Text style={styles.statLabel}>Выполнено</Text>
@@ -245,7 +270,8 @@ export default function ProgressScreen() {
       ) : (
         <View style={styles.noDataContainer}>
           <Text style={styles.noDataText}>
-            Создайте привычку, чтобы видеть прогресс!
+            Создайте привычку и выполните её хотя бы один раз, чтобы увидеть
+            прогресс.
           </Text>
         </View>
       )}

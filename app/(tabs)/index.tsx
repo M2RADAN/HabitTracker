@@ -9,7 +9,7 @@ import {
   Alert,
   Animated,
 } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
 
@@ -18,10 +18,13 @@ import { Habit } from "../../types";
 import { getHabits, saveHabits } from "../../utils/storage";
 import { requestAndShowTestNotification } from "../utils/notifications";
 import { useAchievements } from "../utils/AchievementsContext";
+import { useEditMode } from "../utils/EditModeContext";
 
 dayjs.locale("ru");
 
 export default function DashboardScreen() {
+  const router = useRouter();
+  const { editMode, toggleEditMode } = useEditMode();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [toasts, setToasts] = useState<Array<{ id: string; text: string }>>([]);
@@ -143,18 +146,39 @@ export default function DashboardScreen() {
               Сегодня, {dayjs().format("D MMMM")}
             </Text>
           </View>
-          <TouchableOpacity
-            onPress={async () => {
-              try {
-                await requestAndShowTestNotification();
-              } catch (e) {
-                Alert.alert("Ошибка", "Не удалось показать уведомление");
-              }
-            }}
-            style={{ padding: 8 }}
-          >
-            <Text style={{ color: "#A0A0A0" }}>Тест уведомления</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {/* Edit mode toggle */}
+            <TouchableOpacity
+              onPress={() => toggleEditMode()}
+              style={{ padding: 8, marginLeft: 8 }}
+            >
+              <Text style={{ color: editMode ? "#FFD54F" : "#A0A0A0" }}>
+                {editMode ? "Готово" : "Редактировать"}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Test notification button */}
+            <TouchableOpacity
+              onPress={async () => {
+                try {
+                  await requestAndShowTestNotification();
+                } catch (e) {
+                  Alert.alert("Ошибка", "Не удалось показать уведомление");
+                }
+              }}
+              style={{ padding: 8, marginLeft: 8 }}
+            >
+              <Text style={{ color: "#A0A0A0" }}>Тест уведомления</Text>
+            </TouchableOpacity>
+
+            {/* Create button */}
+            <TouchableOpacity
+              onPress={() => router.push("/create")}
+              style={{ padding: 8, marginLeft: 8 }}
+            >
+              <Text style={{ color: "#A0A0A0", fontSize: 20 }}>＋</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
       {habits.length === 0 ? (

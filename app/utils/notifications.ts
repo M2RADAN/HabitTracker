@@ -149,3 +149,53 @@ export async function requestAndShowTestNotification() {
     });
   }
 }
+
+/**
+ * Schedule a daily reminder at local time (HH:mm). Returns the scheduled notification id or null on failure.
+ * Uses calendar-based trigger with repeats. Works on both iOS and Android via expo-notifications.
+ */
+export async function scheduleDailyReminderAtTime({
+  title,
+  body,
+  time,
+}: {
+  title: string;
+  body: string;
+  time: string; // 'HH:mm'
+}): Promise<string | null> {
+  try {
+    const parts = time.split(":");
+    const hh = parseInt(parts[0], 10);
+    const mm = parseInt(parts[1] || "0", 10);
+    if (Number.isNaN(hh) || Number.isNaN(mm)) {
+      console.warn(
+        "Invalid time format for scheduleDailyReminderAtTime:",
+        time,
+      );
+      return null;
+    }
+
+    const trigger: any = { hour: hh, minute: mm, repeats: true };
+    if (Platform.OS === "android") trigger.channelId = "default";
+
+    const id = await (Notifications as any).scheduleNotificationAsync({
+      content: { title, body, data: { reminderFor: Date.now() } },
+      trigger,
+    });
+    return id as string;
+  } catch (error) {
+    console.log("Error scheduling daily reminder:", error);
+    return null;
+  }
+}
+
+/**
+ * Cancel scheduled notification by id (if exists)
+ */
+export async function cancelScheduledNotificationById(id: string) {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(id);
+  } catch (error) {
+    console.log("Error cancelling scheduled notification:", error);
+  }
+}
